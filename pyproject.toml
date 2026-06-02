@@ -44,9 +44,9 @@ dev = [
 called = "app:main"
 
 [project.urls]
-Homepage = "https://github.com/your-org/called"
-Repository = "https://github.com/your-org/called.git"
-Issues = "https://github.com/your-org/called/issues"
+Homepage = "https://github.com/godie/called"
+Repository = "https://github.com/godie/called.git"
+Issues = "https://github.com/godie/called/issues"
 
 [tool.setuptools]
 py-modules = ["app", "config"]
@@ -58,3 +58,4 @@ include = ["audio*", "transcription*", "storage*", "cli*", "utils*"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 timeout = 30
+pythonpath = ["."]
