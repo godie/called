@@ -1,0 +1,21 @@
+# Core
+python-dotenv>=1.0.0
+
+# Audio capture
+sounddevice>=0.4.6
+numpy>=1.24.0
+
+# Audio compression (Opus/OGG archiving)
+# Falls back to ffmpeg if pyogg is unavailable
+pyogg>=0.6
+
+# Transcription
+faster-whisper>=1.0.0
+
+# Async support (stdlib)
+# asyncio, signal, threading, queue
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-timeout>=2.1.0
