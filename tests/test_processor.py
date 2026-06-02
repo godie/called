@@ -1,14 +1,13 @@
 """Unit tests for the producer/consumer processor."""
 
 import asyncio
+import json
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 import numpy as np
 import pytest
-
-import json
-import tempfile
-from pathlib import Path
 
 from audio.buffers import AudioChunk
 from config import AppConfig, load_config
@@ -209,9 +208,7 @@ class TestTranscriptionProcessor:
         await asyncio.sleep(0.3)
         await processor.stop()
 
-    async def test_multiple_workers(
-        self, config: AppConfig, mock_whisper: WhisperService
-    ) -> None:
+    async def test_multiple_workers(self, config: AppConfig, mock_whisper: WhisperService) -> None:
         """Multiple workers can run concurrently."""
         # Create config with multiple workers using object.__setattr__
         object.__setattr__(config.queue, "num_workers", 2)
@@ -233,9 +230,7 @@ class TestTranscriptionProcessor:
 
         assert mock_whisper.transcribe.call_count >= 1
 
-    async def test_checkpoints_saved(
-        self, config: AppConfig, mock_whisper: WhisperService
-    ) -> None:
+    async def test_checkpoints_saved(self, config: AppConfig, mock_whisper: WhisperService) -> None:
         """Checkpoints are saved periodically."""
         import os
         import tempfile
@@ -269,9 +264,7 @@ class TestTranscriptionProcessor:
             checkpoint_files = os.listdir(tmpdir)
             assert len(checkpoint_files) > 0, f"No checkpoints in {tmpdir}"
 
-    async def test_metrics_collected(
-        self, config: AppConfig, mock_whisper: WhisperService
-    ) -> None:
+    async def test_metrics_collected(self, config: AppConfig, mock_whisper: WhisperService) -> None:
         """Metrics are collected during processing."""
         object.__setattr__(config.metrics, "enabled", True)
 
@@ -390,9 +383,7 @@ class TestTranscriptionProcessor:
         """load_checkpoint returns 0 when checkpoint JSON is corrupt."""
         with tempfile.TemporaryDirectory() as tmpdir:
             checkpoint_dir = Path(tmpdir)
-            (checkpoint_dir / "checkpoint_20240101_120000.json").write_text(
-                "{bad json"
-            )
+            (checkpoint_dir / "checkpoint_20240101_120000.json").write_text("{bad json")
             object.__setattr__(config.checkpoint, "checkpoint_dir", checkpoint_dir)
 
             queue: asyncio.Queue[AudioChunk] = asyncio.Queue(maxsize=8)

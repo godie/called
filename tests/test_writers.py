@@ -44,9 +44,7 @@ class TestTXTWriter:
             entries = [{"timestamp": 0.0, "text": "First"}]
             path = writer.write(entries, filename="append_test.txt")
 
-            writer.append(
-                {"timestamp": 1.0, "text": "Second"}, filename="append_test.txt"
-            )
+            writer.append({"timestamp": 1.0, "text": "Second"}, filename="append_test.txt")
             content = path.read_text()
             assert "First" in content
             assert "Second" in content

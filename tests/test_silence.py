@@ -1,7 +1,6 @@
 """Unit tests for silence detection integration in capture callback."""
 
 import time
-from unittest import mock
 
 import numpy as np
 import pytest
@@ -26,8 +25,6 @@ class TestSilenceDetectionIntegration:
 
     def test_silent_chunk_not_enqueued(self) -> None:
         """Silent chunks are detected and skipped, keeping queue empty."""
-        import asyncio
-        import queue  # Use sync queue for testing
 
         detector = SilenceDetector(threshold_db=-40.0, sample_rate=16000)
 
@@ -162,7 +159,6 @@ class TestRecalibrationBehavior:
             detector.is_silence(make_silent_audio(0.1))
 
         # The noise floor has updated via EMA — manually recalibrate
-        old_threshold = detector.current_threshold_db
         new_threshold = detector.recalibrate()
 
         # The new threshold should be noise_floor + margin
@@ -272,10 +268,12 @@ class TestRecalibrationBehavior:
         detector.recalibrate()
 
         # Mixed audio: silence + loud
-        audio = np.concatenate([
-            make_silent_audio(1.0),
-            make_loud_audio(1.0),
-            make_silent_audio(1.0),
-        ])
+        audio = np.concatenate(
+            [
+                make_silent_audio(1.0),
+                make_loud_audio(1.0),
+                make_silent_audio(1.0),
+            ]
+        )
         segments = detector.get_speech_segments(audio)
         assert len(segments) >= 1

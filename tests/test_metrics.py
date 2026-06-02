@@ -1,7 +1,5 @@
 """Unit tests for ProcessingMetrics."""
 
-import time
-
 from transcription.processor import ProcessingMetrics
 
 
@@ -85,7 +83,7 @@ class TestProcessingMetrics:
     def test_latency_samples_capped_at_1000(self) -> None:
         """Latency samples are capped to prevent memory growth."""
         m = ProcessingMetrics()
-        for i in range(1500):
+        for _ in range(1500):
             m.record_chunk(processing_time=0.1, audio_duration=1.0, queue_size=1)
 
         assert len(m.latency_samples) <= 1000

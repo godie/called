@@ -2,12 +2,11 @@
 
 import logging
 import sys
-from typing import Optional
 
 
 def setup_logging(
     level: str = "INFO",
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
     name: str = "realtime-transcriber",
 ) -> logging.Logger:
     """Configure and return the application logger.

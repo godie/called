@@ -1,8 +1,8 @@
 """Timing and time-related utilities."""
 
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 
 @contextmanager

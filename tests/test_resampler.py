@@ -4,10 +4,9 @@ import numpy as np
 
 from audio.resampler import (
     TARGET_SAMPLE_RATE,
-    TARGET_CHANNELS,
-    resample_to_whisper_format,
     _resample_linear,
     audio_chunk_duration,
+    resample_to_whisper_format,
 )
 
 

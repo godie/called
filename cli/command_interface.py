@@ -15,7 +15,7 @@ import logging
 import sys
 import termios
 import tty
-from typing import Callable, Optional
+from collections.abc import Callable
 
 logger = logging.getLogger("realtime-transcriber.cli")
 
@@ -33,7 +33,7 @@ class CommandInterface:
 
     def __init__(
         self,
-        on_toggle_recording: Callable[[], Optional[bool]],
+        on_toggle_recording: Callable[[], bool | None],
         on_show_status: Callable[[], str],
         on_quit: Callable[[], None],
     ) -> None:
@@ -51,7 +51,7 @@ class CommandInterface:
         self._on_status = on_show_status
         self._on_quit = on_quit
         self._running: bool = False
-        self._original_terminal: Optional[list] = None
+        self._original_terminal: list | None = None
         self._stdin_fd: int = sys.stdin.fileno()
 
     async def run(self) -> None:
@@ -73,9 +73,7 @@ class CommandInterface:
 
             while self._running:
                 try:
-                    char = await asyncio.wait_for(
-                        reader.read(1), timeout=0.5
-                    )
+                    char = await asyncio.wait_for(reader.read(1), timeout=0.5)
                 except asyncio.TimeoutError:
                     continue
 
@@ -146,9 +144,7 @@ class CommandInterface:
         """Restore the original terminal settings."""
         if self._original_terminal is not None:
             try:
-                termios.tcsetattr(
-                    self._stdin_fd, termios.TCSADRAIN, self._original_terminal
-                )
+                termios.tcsetattr(self._stdin_fd, termios.TCSADRAIN, self._original_terminal)
             except (termios.error, OSError) as exc:
                 logger.debug("Failed to restore terminal: %s", exc)
 

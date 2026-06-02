@@ -4,13 +4,11 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 from faster_whisper import WhisperModel
 from faster_whisper.transcribe import Segment, TranscriptionInfo
 
-from audio.buffers import AudioChunk
 from audio.resampler import resample_to_whisper_format
 
 logger = logging.getLogger("realtime-transcriber.whisper")
@@ -26,7 +24,7 @@ class TranscriptionResult:
     language_probability: float = 0.0
     processing_time: float = 0.0
     input_duration: float = 0.0
-    error: Optional[str] = None  # Set when transcription fails
+    error: str | None = None  # Set when transcription fails
 
 
 @dataclass
@@ -51,7 +49,7 @@ class WhisperService:
         device: str = "auto",
         compute_type: str = "default",
         beam_size: int = 5,
-        language: Optional[str] = None,
+        language: str | None = None,
         vad_threshold: float = 0.5,
     ) -> None:
         """Initialize the Whisper service.
@@ -68,10 +66,10 @@ class WhisperService:
         self._device: str = device
         self._compute_type: str = compute_type
         self._beam_size: int = beam_size
-        self._language: Optional[str] = language
+        self._language: str | None = language
         self._vad_threshold: float = vad_threshold
 
-        self._model: Optional[WhisperModel] = None
+        self._model: WhisperModel | None = None
         self._lock: threading.Lock = threading.Lock()
         self._loaded: bool = False
 

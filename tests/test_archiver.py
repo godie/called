@@ -114,7 +114,7 @@ class TestSaveWav:
 
             with wave.open(str(path), "rb") as wf:
                 data = np.frombuffer(wf.readframes(3), dtype=np.int16)
-                assert data[0] == 32767   # 2.0 clipped to +max
+                assert data[0] == 32767  # 2.0 clipped to +max
                 assert data[1] == -32768  # -3.0 clipped to -max
                 # 0.5 * 32767 = 16383.5 → floor to 16383
                 assert data[2] == 16383
@@ -192,18 +192,12 @@ class TestFallbackBehavior:
         with tempfile.TemporaryDirectory() as tmpdir:
             archiver = AudioArchiver(Path(tmpdir), bitrate="16k")
 
-            with mock.patch.object(
-                archiver, "_encode_opus_ffmpeg"
-            ) as mock_ffmpeg:
-                with mock.patch.object(
-                    archiver, "_encode_opus_pyogg"
-                ) as mock_pyogg:
-                    with mock.patch.object(
-                        archiver_module, "_HAS_PYOGG", False
-                    ):
-                        archiver._encode_opus(
-                            audio, Path(tmpdir) / "test.opus"
-                        )
+            with (
+                mock.patch.object(archiver, "_encode_opus_ffmpeg") as mock_ffmpeg,
+                mock.patch.object(archiver, "_encode_opus_pyogg") as mock_pyogg,
+                mock.patch.object(archiver_module, "_HAS_PYOGG", False),
+            ):
+                archiver._encode_opus(audio, Path(tmpdir) / "test.opus")
 
             mock_ffmpeg.assert_called_once()
             mock_pyogg.assert_not_called()
@@ -217,15 +211,11 @@ class TestFallbackBehavior:
         with tempfile.TemporaryDirectory() as tmpdir:
             archiver = AudioArchiver(Path(tmpdir), bitrate="16k")
 
-            with mock.patch.object(
-                archiver, "_encode_opus_pyogg"
-            ) as mock_pyogg:
-                with mock.patch.object(
-                    archiver, "_encode_opus_ffmpeg"
-                ) as mock_ffmpeg:
-                    archiver._encode_opus(
-                        audio, Path(tmpdir) / "test.opus"
-                    )
+            with (
+                mock.patch.object(archiver, "_encode_opus_pyogg") as mock_pyogg,
+                mock.patch.object(archiver, "_encode_opus_ffmpeg") as mock_ffmpeg,
+            ):
+                archiver._encode_opus(audio, Path(tmpdir) / "test.opus")
 
             mock_pyogg.assert_called_once()
             mock_ffmpeg.assert_not_called()
@@ -291,11 +281,11 @@ class TestFfmpegSubprocess:
             archiver = AudioArchiver(Path(tmpdir), bitrate="16k")
             output_path = Path(tmpdir) / "test.opus"
 
-            with mock.patch(
-                "subprocess.run", side_effect=FileNotFoundError("ffmpeg")
+            with (
+                mock.patch("subprocess.run", side_effect=FileNotFoundError("ffmpeg")),
+                pytest.raises(RuntimeError, match="ffmpeg"),
             ):
-                with pytest.raises(RuntimeError, match="ffmpeg"):
-                    archiver._encode_opus_ffmpeg(audio, output_path)
+                archiver._encode_opus_ffmpeg(audio, output_path)
 
     def test_ffmpeg_failure_raises(self) -> None:
         """CalledProcessError from ffmpeg is re-raised."""
@@ -304,12 +294,12 @@ class TestFfmpegSubprocess:
             archiver = AudioArchiver(Path(tmpdir), bitrate="16k")
             output_path = Path(tmpdir) / "test.opus"
 
-            error = subprocess.CalledProcessError(
-                1, "ffmpeg", stderr=b"Encoder error"
-            )
-            with mock.patch("subprocess.run", side_effect=error):
-                with pytest.raises(subprocess.CalledProcessError):
-                    archiver._encode_opus_ffmpeg(audio, output_path)
+            error = subprocess.CalledProcessError(1, "ffmpeg", stderr=b"Encoder error")
+            with (
+                mock.patch("subprocess.run", side_effect=error),
+                pytest.raises(RuntimeError, match="ffmpeg encoding failed"),
+            ):
+                archiver._encode_opus_ffmpeg(audio, output_path)
 
 
 class TestErrorHandling:
@@ -321,9 +311,7 @@ class TestErrorHandling:
         with tempfile.TemporaryDirectory() as tmpdir:
             archiver = AudioArchiver(Path(tmpdir), bitrate="16k")
 
-            with mock.patch.object(
-                archiver, "_encode_opus", side_effect=RuntimeError("fail")
-            ):
+            with mock.patch.object(archiver, "_encode_opus", side_effect=RuntimeError("fail")):
                 result = archiver.archive_chunk(audio)
                 assert result is None
 
@@ -334,9 +322,7 @@ class TestErrorHandling:
             archiver = AudioArchiver(Path(tmpdir), bitrate="16k")
             before = archiver._chunk_index
 
-            with mock.patch.object(
-                archiver, "_encode_opus", side_effect=RuntimeError("fail")
-            ):
+            with mock.patch.object(archiver, "_encode_opus", side_effect=RuntimeError("fail")):
                 archiver.archive_chunk(audio)
 
             assert archiver._chunk_index == before + 1
@@ -388,4 +374,4 @@ class TestArchiveWithEmptyAudio:
             archiver = AudioArchiver(Path(tmpdir), bitrate="16k")
             result = archiver.archive_chunk(audio)
             # Should try to encode — may succeed or fail depending on codec
-            assert isinstance(result, (Path, type(None)))
+            assert isinstance(result, Path | None)

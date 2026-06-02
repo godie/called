@@ -8,7 +8,6 @@ concurrent single-producer, single-consumer access.
 import logging
 import threading
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -45,7 +44,7 @@ class RingBuffer:
             raise ValueError(f"Capacity must be >= 1, got {capacity}")
 
         self._capacity: int = capacity
-        self._buffer: list[Optional[AudioChunk]] = [None] * capacity
+        self._buffer: list[AudioChunk | None] = [None] * capacity
         self._head: int = 0  # Write position
         self._tail: int = 0  # Read position
         self._size: int = 0
@@ -108,7 +107,7 @@ class RingBuffer:
                         self._capacity,
                     )
 
-    def get(self) -> Optional[AudioChunk]:
+    def get(self) -> AudioChunk | None:
         """Retrieve and remove the oldest chunk from the buffer.
 
         Returns:
@@ -124,7 +123,7 @@ class RingBuffer:
             self._size -= 1
             return chunk
 
-    def peek(self) -> Optional[AudioChunk]:
+    def peek(self) -> AudioChunk | None:
         """View the oldest chunk without removing it.
 
         Returns:

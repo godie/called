@@ -8,12 +8,11 @@ losing data from the previous session.
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("realtime-transcriber.checkpoint")
 
 
-def find_latest_checkpoint(checkpoint_dir: Path) -> Optional[Path]:
+def find_latest_checkpoint(checkpoint_dir: Path) -> Path | None:
     """Find the most recent checkpoint file by modification time.
 
     Args:
@@ -33,7 +32,7 @@ def find_latest_checkpoint(checkpoint_dir: Path) -> Optional[Path]:
     return checkpoints[0] if checkpoints else None
 
 
-def load_checkpoint_data(checkpoint_path: Path) -> Optional[dict]:
+def load_checkpoint_data(checkpoint_path: Path) -> dict | None:
     """Load checkpoint JSON data from a file.
 
     Args:
@@ -43,7 +42,7 @@ def load_checkpoint_data(checkpoint_path: Path) -> Optional[dict]:
         Parsed checkpoint dictionary, or None on failure.
     """
     try:
-        with open(checkpoint_path, "r", encoding="utf-8") as f:
+        with open(checkpoint_path, encoding="utf-8") as f:
             data = json.load(f)
 
         # Validate required fields

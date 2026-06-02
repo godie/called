@@ -12,7 +12,6 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -72,7 +71,7 @@ class AudioArchiver:
         self._archive_dir.mkdir(parents=True, exist_ok=True)
         self._chunk_index: int = 0
 
-    def archive_chunk(self, audio: np.ndarray) -> Optional[Path]:
+    def archive_chunk(self, audio: np.ndarray) -> Path | None:
         """Compress and save an audio chunk to disk.
 
         Args:
@@ -158,9 +157,7 @@ class AudioArchiver:
             output_path.stat().st_size / 1024,
         )
 
-    def _encode_opus_ffmpeg(
-        self, audio: np.ndarray, output_path: Path
-    ) -> None:
+    def _encode_opus_ffmpeg(self, audio: np.ndarray, output_path: Path) -> None:
         """Encode using ffmpeg subprocess.
 
         Args:
@@ -175,12 +172,18 @@ class AudioArchiver:
                     [
                         "ffmpeg",
                         "-y",
-                        "-i", tmp.name,
-                        "-c:a", "libopus",
-                        "-b:a", str(self._bitrate),
-                        "-application", "voip",
-                        "-vbr", "on",
-                        "-frame_duration", "20",
+                        "-i",
+                        tmp.name,
+                        "-c:a",
+                        "libopus",
+                        "-b:a",
+                        str(self._bitrate),
+                        "-application",
+                        "voip",
+                        "-vbr",
+                        "on",
+                        "-frame_duration",
+                        "20",
                         str(output_path),
                     ],
                     capture_output=True,
@@ -198,17 +201,14 @@ class AudioArchiver:
                     exc,
                     exc.stderr.decode() if exc.stderr else "",
                 )
-                raise
+                raise RuntimeError(f"ffmpeg encoding failed: {exc}") from exc
             except FileNotFoundError:
-                logger.error(
-                    "ffmpeg not found. Install ffmpeg or pyogg to enable "
-                    "Opus archiving."
-                )
+                logger.error("ffmpeg not found. Install ffmpeg or pyogg to enable Opus archiving.")
                 raise RuntimeError(
                     "Opus archiving requires ffmpeg or pyogg. "
                     "Install with: brew install ffmpeg  (macOS) "
                     "or: pip install pyogg"
-                )
+                ) from None
 
     @staticmethod
     def _save_wav(audio: np.ndarray, output_path: Path) -> None:

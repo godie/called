@@ -86,9 +86,7 @@ class SilenceDetector:
         )
         return rms_db < effective_threshold
 
-    def get_speech_segments(
-        self, audio: np.ndarray
-    ) -> list[tuple[int, int]]:
+    def get_speech_segments(self, audio: np.ndarray) -> list[tuple[int, int]]:
         """Find speech segments within an audio chunk.
 
         Args:
@@ -111,12 +109,8 @@ class SilenceDetector:
         in_speech = False
         speech_start = 0
         silence_frames = 0
-        min_speech_frames = int(
-            self._min_speech_duration / 0.02
-        )
-        max_silence_frames = int(
-            self._silence_duration / 0.02
-        )
+        min_speech_frames = int(self._min_speech_duration / 0.02)
+        max_silence_frames = int(self._silence_duration / 0.02)
 
         for i in range(num_frames):
             start = i * frame_size
@@ -124,9 +118,7 @@ class SilenceDetector:
             frame = audio[start:end]
             rms_db = self._compute_rms_db(frame)
 
-            threshold = max(
-                self._threshold_db, self._noise_floor + self._recalibration_margin_db
-            )
+            threshold = max(self._threshold_db, self._noise_floor + self._recalibration_margin_db)
 
             if rms_db >= threshold:
                 if not in_speech:
@@ -138,13 +130,9 @@ class SilenceDetector:
                     silence_frames += 1
                     if silence_frames >= max_silence_frames:
                         # End of speech segment
-                        speech_frames = (i - silence_frames) - int(
-                            speech_start / frame_size
-                        )
+                        speech_frames = (i - silence_frames) - int(speech_start / frame_size)
                         if speech_frames >= min_speech_frames:
-                            segments.append(
-                                (speech_start, start - silence_frames * frame_size)
-                            )
+                            segments.append((speech_start, start - silence_frames * frame_size))
                         in_speech = False
                         silence_frames = 0
 
@@ -185,9 +173,7 @@ class SilenceDetector:
         # Slow exponential moving average toward quiet frames
         if rms_db < self._threshold_db:
             alpha = 0.001
-            self._noise_floor = (
-                (1.0 - alpha) * self._noise_floor + alpha * rms_db
-            )
+            self._noise_floor = (1.0 - alpha) * self._noise_floor + alpha * rms_db
 
     def _maybe_recalibrate(self) -> None:
         """Check if recalibration is due and trigger if so.

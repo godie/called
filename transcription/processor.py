@@ -5,6 +5,7 @@ Includes metrics collection, checkpointing, and backpressure management.
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -66,9 +67,7 @@ class ProcessingMetrics:
             self.queue_size_samples = self.queue_size_samples[-1000:]
 
         self.avg_latency = (
-            sum(self.latency_samples) / len(self.latency_samples)
-            if self.latency_samples
-            else 0.0
+            sum(self.latency_samples) / len(self.latency_samples) if self.latency_samples else 0.0
         )
 
     def record_dropped(self) -> None:
@@ -228,28 +227,20 @@ class TranscriptionProcessor:
 
         # Start worker tasks
         for i in range(self._config.queue.num_workers):
-            task = asyncio.create_task(
-                self._worker(i), name=f"transcriber-worker-{i}"
-            )
+            task = asyncio.create_task(self._worker(i), name=f"transcriber-worker-{i}")
             self._tasks.append(task)
 
         # Start metrics reporter
         if self._config.metrics.enabled:
-            metrics_task = asyncio.create_task(
-                self._metrics_reporter(), name="metrics-reporter"
-            )
+            metrics_task = asyncio.create_task(self._metrics_reporter(), name="metrics-reporter")
             self._tasks.append(metrics_task)
 
         # Start checkpoint saver
-        checkpoint_task = asyncio.create_task(
-            self._checkpoint_saver(), name="checkpoint-saver"
-        )
+        checkpoint_task = asyncio.create_task(self._checkpoint_saver(), name="checkpoint-saver")
         self._tasks.append(checkpoint_task)
 
         # Start hourly rotation task
-        rotation_task = asyncio.create_task(
-            self._rotation_scheduler(), name="rotation-scheduler"
-        )
+        rotation_task = asyncio.create_task(self._rotation_scheduler(), name="rotation-scheduler")
         self._tasks.append(rotation_task)
 
         logger.info(
@@ -266,10 +257,8 @@ class TranscriptionProcessor:
         # Wait for all tasks to finish
         for task in self._tasks:
             task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
 
         self._tasks.clear()
 
@@ -295,9 +284,7 @@ class TranscriptionProcessor:
             try:
                 # Wait for chunk with timeout to check shutdown
                 try:
-                    chunk = await asyncio.wait_for(
-                        self._queue.get(), timeout=1.0
-                    )
+                    chunk = await asyncio.wait_for(self._queue.get(), timeout=1.0)
                 except asyncio.TimeoutError:
                     continue
 
@@ -328,9 +315,7 @@ class TranscriptionProcessor:
                 logger.info("Worker %d cancelled", worker_id)
                 break
             except Exception as exc:
-                logger.error(
-                    "Worker %d error: %s", worker_id, exc, exc_info=True
-                )
+                logger.error("Worker %d error: %s", worker_id, exc, exc_info=True)
             finally:
                 if chunk is not None:
                     self._queue.task_done()
@@ -354,9 +339,7 @@ class TranscriptionProcessor:
         )
         return result
 
-    def _add_to_transcript(
-        self, result: TranscriptionResult, timestamp: float
-    ) -> None:
+    def _add_to_transcript(self, result: TranscriptionResult, timestamp: float) -> None:
         """Add a transcription result to the transcript buffer.
 
         Handles deduplication of overlapping chunks using word overlap ratio.
@@ -469,8 +452,7 @@ class TranscriptionProcessor:
                 await asyncio.sleep(interval)
                 summary = self._metrics.get_summary()
                 logger.info(
-                    "METRICS | chunks=%d dropped=%d latency=%.1fms "
-                    "queue=%.1f rtf=%.3f",
+                    "METRICS | chunks=%d dropped=%d latency=%.1fms queue=%.1f rtf=%.3f",
                     summary["chunks_processed"],
                     summary["chunks_dropped"],
                     summary["avg_latency_ms"],

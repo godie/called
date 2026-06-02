@@ -3,7 +3,6 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -25,8 +24,8 @@ class SilenceDetectionConfig:
 class AudioConfig:
     """Audio capture configuration."""
 
-    mic_device_index: Optional[int] = None
-    system_audio_device_index: Optional[int] = None
+    mic_device_index: int | None = None
+    system_audio_device_index: int | None = None
     sample_rate: int = 16000
     chunk_duration: float = 2.0
     channels: int = 1
@@ -47,7 +46,7 @@ class WhisperConfig:
     device: str = "auto"
     compute_type: str = "default"
     beam_size: int = 5
-    language: Optional[str] = None
+    language: str | None = None
     vad_threshold: float = 0.5
     min_speech_duration: float = 0.5
     silence_duration: float = 1.0
@@ -102,7 +101,7 @@ class LogConfig:
     """Logging configuration."""
 
     level: str = "INFO"
-    log_file: Optional[str] = None
+    log_file: str | None = None
 
 
 @dataclass(frozen=True)
@@ -121,7 +120,7 @@ class AppConfig:
     log: LogConfig = field(default_factory=LogConfig)
 
 
-def _parse_optional_int(value: str) -> Optional[int]:
+def _parse_optional_int(value: str) -> int | None:
     """Parse an optional integer from a string."""
     if not value:
         return None
@@ -140,12 +139,8 @@ def load_config() -> AppConfig:
     )
 
     audio = AudioConfig(
-        mic_device_index=_parse_optional_int(
-            os.getenv("MIC_DEVICE_INDEX", "")
-        ),
-        system_audio_device_index=_parse_optional_int(
-            os.getenv("SYSTEM_AUDIO_DEVICE_INDEX", "")
-        ),
+        mic_device_index=_parse_optional_int(os.getenv("MIC_DEVICE_INDEX", "")),
+        system_audio_device_index=_parse_optional_int(os.getenv("SYSTEM_AUDIO_DEVICE_INDEX", "")),
         sample_rate=int(os.getenv("SAMPLE_RATE", "16000")),
         chunk_duration=float(os.getenv("CHUNK_DURATION", "2.0")),
         channels=int(os.getenv("CHANNELS", "1")),

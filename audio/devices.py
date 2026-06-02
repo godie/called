@@ -1,7 +1,6 @@
 """Audio device enumeration and selection."""
 
 import logging
-from typing import Optional
 
 import sounddevice as sd
 
@@ -17,18 +16,20 @@ def list_input_devices() -> list[dict]:
     devices: list[dict] = []
     for idx, device in enumerate(sd.query_devices()):
         if device["max_input_channels"] > 0:
-            devices.append({
-                "index": idx,
-                "name": device["name"],
-                "channels": device["max_input_channels"],
-                "default_samplerate": device["default_samplerate"],
-                "hostapi": device["hostapi"],
-                "is_default": device.get("isdefault", False),
-            })
+            devices.append(
+                {
+                    "index": idx,
+                    "name": device["name"],
+                    "channels": device["max_input_channels"],
+                    "default_samplerate": device["default_samplerate"],
+                    "hostapi": device["hostapi"],
+                    "is_default": device.get("isdefault", False),
+                }
+            )
     return devices
 
 
-def find_device_by_name(name_substring: str) -> Optional[int]:
+def find_device_by_name(name_substring: str) -> int | None:
     """Find a device index by partial name match.
 
     Args:
@@ -46,7 +47,7 @@ def find_device_by_name(name_substring: str) -> Optional[int]:
     return None
 
 
-def get_default_input_device() -> Optional[int]:
+def get_default_input_device() -> int | None:
     """Get the default input device index.
 
     Returns:

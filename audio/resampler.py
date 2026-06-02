@@ -52,9 +52,7 @@ def resample_to_whisper_format(
     # Step 2: Resample if needed
     if input_sample_rate != TARGET_SAMPLE_RATE:
         audio = _resample_linear(audio, input_sample_rate, TARGET_SAMPLE_RATE)
-        logger.debug(
-            "Resampled from %d Hz to %d Hz", input_sample_rate, TARGET_SAMPLE_RATE
-        )
+        logger.debug("Resampled from %d Hz to %d Hz", input_sample_rate, TARGET_SAMPLE_RATE)
 
     return audio.astype(np.float32, copy=False)
 

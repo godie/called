@@ -1,6 +1,7 @@
 """Unit tests for Config loading."""
 
 import os
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 from unittest import mock
 
@@ -108,7 +109,7 @@ class TestConfig:
     def test_config_is_frozen(self) -> None:
         """Configuration dataclasses are frozen (immutable)."""
         config = AppConfig()
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             config.audio.sample_rate = 48000  # type: ignore[misc]
 
     def test_empty_language_means_none(self) -> None:

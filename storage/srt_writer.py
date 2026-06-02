@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from utils.timers import format_duration, get_timestamp
+from utils.timers import get_timestamp
 
 logger = logging.getLogger("realtime-transcriber.srt_writer")
 

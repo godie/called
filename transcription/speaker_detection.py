@@ -7,7 +7,6 @@ speechbrain, or custom models.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -18,7 +17,7 @@ class SpeakerSegment:
 
     speaker_id: str
     start: float  # Start time in seconds
-    end: float    # End time in seconds
+    end: float  # End time in seconds
     confidence: float = 1.0
 
 
@@ -30,9 +29,7 @@ class SpeakerDetector(ABC):
     """
 
     @abstractmethod
-    def detect_speakers(
-        self, audio: np.ndarray, sample_rate: int
-    ) -> list[SpeakerSegment]:
+    def detect_speakers(self, audio: np.ndarray, sample_rate: int) -> list[SpeakerSegment]:
         """Detect speaker segments in audio data.
 
         Args:
@@ -61,9 +58,7 @@ class NoOpSpeakerDetector(SpeakerDetector):
     Used when speaker detection is not configured or unavailable.
     """
 
-    def detect_speakers(
-        self, audio: np.ndarray, sample_rate: int
-    ) -> list[SpeakerSegment]:
+    def detect_speakers(self, audio: np.ndarray, sample_rate: int) -> list[SpeakerSegment]:
         return []
 
     def label_speaker(self, speaker_id: str, label: str) -> None:

@@ -17,21 +17,19 @@ Interactive commands (while running):
 
 import argparse
 import asyncio
+import contextlib
 import logging
 import signal
 import sys
 import time
-from pathlib import Path
-from typing import Optional
 
 from audio.archiver import AudioArchiver
 from audio.capture import AudioCapture, SystemAudioCapture
-from audio.silence import SilenceDetector
 from audio.devices import (
-    find_device_by_name,
     get_default_input_device,
     print_available_devices,
 )
+from audio.silence import SilenceDetector
 from cli.command_interface import CommandInterface
 from config import AppConfig, load_config
 from storage.json_writer import JSONWriter
@@ -99,17 +97,15 @@ class Application:
             config: Application configuration.
         """
         self._config: AppConfig = config
-        self._queue: asyncio.Queue = asyncio.Queue(
-            maxsize=config.queue.max_size
-        )
-        self._whisper: Optional[WhisperService] = None
-        self._processor: Optional[TranscriptionProcessor] = None
-        self._mic_capture: Optional[AudioCapture] = None
-        self._system_capture: Optional[SystemAudioCapture] = None
+        self._queue: asyncio.Queue = asyncio.Queue(maxsize=config.queue.max_size)
+        self._whisper: WhisperService | None = None
+        self._processor: TranscriptionProcessor | None = None
+        self._mic_capture: AudioCapture | None = None
+        self._system_capture: SystemAudioCapture | None = None
         self._shutdown_event: asyncio.Event = asyncio.Event()
         self._start_time: float = 0.0
         self._recording: bool = True
-        self._archiver: Optional[AudioArchiver] = None
+        self._archiver: AudioArchiver | None = None
 
     async def run(self) -> int:
         """Run the application.
@@ -162,8 +158,8 @@ class Application:
             loop = asyncio.get_running_loop()
 
             # Initialize silence detector to skip silent chunks
-            mic_silence: Optional[SilenceDetector] = None
-            sys_silence: Optional[SilenceDetector] = None
+            mic_silence: SilenceDetector | None = None
+            sys_silence: SilenceDetector | None = None
             if self._config.silence_detection.enabled:
                 mic_silence = SilenceDetector(
                     threshold_db=self._config.silence_detection.threshold_db,
@@ -254,9 +250,7 @@ class Application:
             # Run CLI concurrently with shutdown signal so both 'q' and
             # SIGTERM trigger exit (whichever fires first)
             cli_task = asyncio.create_task(cli.run())
-            shutdown_waiter = asyncio.create_task(
-                self._shutdown_event.wait()
-            )
+            shutdown_waiter = asyncio.create_task(self._shutdown_event.wait())
 
             done, pending = await asyncio.wait(
                 [cli_task, shutdown_waiter],
@@ -265,18 +259,18 @@ class Application:
             # Cancel whichever task didn't complete
             for task in pending:
                 task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await task
-                except asyncio.CancelledError:
-                    pass
 
         except Exception as exc:
             _logger.error("Application error: %s", exc, exc_info=True)
-            return 1
-
+            exit_code = 1
+        else:
+            exit_code = 0
         finally:
             await self._shutdown()
-            return 0
+
+        return exit_code
 
     async def _shutdown(self) -> None:
         """Gracefully shut down all components."""
@@ -295,14 +289,8 @@ class Application:
             await self._processor.stop()
 
         # Log per-source silence stats for debugging dead-air sources
-        mic_skipped = (
-            self._mic_capture.silent_chunks_skipped if self._mic_capture else 0
-        )
-        sys_skipped = (
-            self._system_capture.silent_chunks_skipped
-            if self._system_capture
-            else 0
-        )
+        mic_skipped = self._mic_capture.silent_chunks_skipped if self._mic_capture else 0
+        sys_skipped = self._system_capture.silent_chunks_skipped if self._system_capture else 0
         if mic_skipped or sys_skipped:
             chunk_s = self._config.audio.chunk_duration
             _logger.info(
@@ -319,7 +307,7 @@ class Application:
         elapsed = time.time() - self._start_time
         _logger.info(
             "Shutdown complete. Ran for %s",
-            f"{elapsed:.1f}s ({elapsed/3600:.1f}h)",
+            f"{elapsed:.1f}s ({elapsed / 3600:.1f}h)",
         )
 
     async def _save_transcripts(self) -> None:
@@ -367,7 +355,7 @@ class Application:
         """Signal the application to shut down."""
         self._shutdown_event.set()
 
-    def _toggle_recording(self) -> Optional[bool]:
+    def _toggle_recording(self) -> bool | None:
         """Toggle recording on/off. Pauses or resumes audio capture.
 
         Returns:
@@ -436,39 +424,31 @@ class Application:
         if self._processor is not None:
             m = self._processor.metrics
             summary = m.get_summary()
-            lines.extend([
-                f"│  Chunks:  {summary['chunks_processed']:>5d} processed, "
-                f"{summary['chunks_dropped']:>4d} dropped      │",
-                f"│  Latency: {summary['avg_latency_ms']:>6.1f}ms avg, "
-                f"{summary['realtime_factor']:.3f} RTF         │",
-                f"│  Queue:   {summary['avg_queue_size']:>5.1f} avg size               │",
-            ])
+            lines.extend(
+                [
+                    f"│  Chunks:  {summary['chunks_processed']:>5d} processed, "
+                    f"{summary['chunks_dropped']:>4d} dropped      │",
+                    f"│  Latency: {summary['avg_latency_ms']:>6.1f}ms avg, "
+                    f"{summary['realtime_factor']:.3f} RTF         │",
+                    f"│  Queue:   {summary['avg_queue_size']:>5.1f} avg size               │",
+                ]
+            )
 
         if self._mic_capture is not None:
             dev = self._mic_capture.get_device_index()
-            recovering = (
-                " (recovering)" if self._mic_capture.is_recovering else ""
-            )
-            lines.append(
-                f"│  Mic:     device {dev}{recovering:<20} │"
-            )
+            recovering = " (recovering)" if self._mic_capture.is_recovering else ""
+            lines.append(f"│  Mic:     device {dev}{recovering:<20} │")
 
         if self._system_capture is not None:
             dev = self._system_capture.get_device_index()
-            lines.append(
-                f"│  SysAudio: device {dev:<12} │"
-            )
+            lines.append(f"│  SysAudio: device {dev:<12} │")
 
         # Show per-source silence skipped counts
         mic_skipped = (
-            self._mic_capture.silent_chunks_skipped
-            if self._mic_capture is not None
-            else 0
+            self._mic_capture.silent_chunks_skipped if self._mic_capture is not None else 0
         )
         sys_skipped = (
-            self._system_capture.silent_chunks_skipped
-            if self._system_capture is not None
-            else 0
+            self._system_capture.silent_chunks_skipped if self._system_capture is not None else 0
         )
         total_skipped = mic_skipped + sys_skipped
 
@@ -476,20 +456,13 @@ class Application:
             chunk_s = self._config.audio.chunk_duration
             parts: list[str] = []
             if mic_skipped > 0:
-                parts.append(
-                    f"mic: {mic_skipped} ({mic_skipped * chunk_s:.0f}s)"
-                )
+                parts.append(f"mic: {mic_skipped} ({mic_skipped * chunk_s:.0f}s)")
             if sys_skipped > 0:
-                parts.append(
-                    f"sys: {sys_skipped} ({sys_skipped * chunk_s:.0f}s)"
-                )
-            lines.append(
-                f"│  Silent:  {', '.join(parts)}        │"
-            )
+                parts.append(f"sys: {sys_skipped} ({sys_skipped * chunk_s:.0f}s)")
+            lines.append(f"│  Silent:  {', '.join(parts)}        │")
 
         # Show recalibration info if a silence detector is active
-        if (self._mic_capture is not None
-                and self._mic_capture._silence_detector is not None):
+        if self._mic_capture is not None and self._mic_capture._silence_detector is not None:
             det = self._mic_capture._silence_detector
             if det.recalibration_count > 0:
                 lines.append(
@@ -538,8 +511,7 @@ async def main() -> int:
     config = AppConfig(
         audio=config.audio.__class__(
             mic_device_index=args.device or config.audio.mic_device_index,
-            system_audio_device_index=args.system_audio
-            or config.audio.system_audio_device_index,
+            system_audio_device_index=args.system_audio or config.audio.system_audio_device_index,
             sample_rate=config.audio.sample_rate,
             chunk_duration=config.audio.chunk_duration,
             channels=config.audio.channels,

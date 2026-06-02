@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import numpy as np
 import sounddevice as sd
@@ -32,15 +32,15 @@ class AudioCapture:
 
     def __init__(
         self,
-        device_index: Optional[int],
+        device_index: int | None,
         sample_rate: int = 16000,
         chunk_duration: float = 2.0,
         channels: int = 1,
-        ring_buffer: Optional[RingBuffer] = None,
-        queue: Optional[asyncio.Queue[AudioChunk]] = None,
-        archiver: Optional["AudioArchiver"] = None,
-        silence_detector: Optional[SilenceDetector] = None,
-        on_permanent_failure: Optional[Callable[[], None]] = None,
+        ring_buffer: RingBuffer | None = None,
+        queue: asyncio.Queue[AudioChunk] | None = None,
+        archiver: AudioArchiver | None = None,
+        silence_detector: SilenceDetector | None = None,
+        on_permanent_failure: Callable[[], None] | None = None,
     ) -> None:
         """Initialize audio capture.
 
@@ -55,20 +55,20 @@ class AudioCapture:
             silence_detector: Optional silence detector to skip silent chunks.
             on_permanent_failure: Called when auto-recovery is exhausted.
         """
-        self._device_index: Optional[int] = device_index
+        self._device_index: int | None = device_index
         self._sample_rate: int = sample_rate
         self._chunk_duration: float = chunk_duration
         self._channels: int = channels
         self._blocksize: int = int(sample_rate * chunk_duration)
-        self._ring_buffer: Optional[RingBuffer] = ring_buffer
-        self._queue: Optional[asyncio.Queue[AudioChunk]] = queue
-        self._archiver: Optional["AudioArchiver"] = archiver
-        self._silence_detector: Optional[SilenceDetector] = silence_detector
+        self._ring_buffer: RingBuffer | None = ring_buffer
+        self._queue: asyncio.Queue[AudioChunk] | None = queue
+        self._archiver: AudioArchiver | None = archiver
+        self._silence_detector: SilenceDetector | None = silence_detector
         self._silent_chunks_skipped: int = 0
-        self._on_permanent_failure: Optional[Callable[[], None]] = on_permanent_failure
+        self._on_permanent_failure: Callable[[], None] | None = on_permanent_failure
 
-        self._stream: Optional[sd.InputStream] = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._stream: sd.InputStream | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._chunk_counter: int = 0
         self._running: bool = False
 
@@ -117,10 +117,9 @@ class AudioCapture:
 
         try:
             # Skip silent chunks BEFORE copying — saves CPU allocation
-            if self._silence_detector is not None:
-                if self._silence_detector.is_silence(indata):
-                    self._silent_chunks_skipped += 1
-                    return
+            if self._silence_detector is not None and self._silence_detector.is_silence(indata):
+                self._silent_chunks_skipped += 1
+                return
 
             raw_data = indata.copy()
 
@@ -147,9 +146,7 @@ class AudioCapture:
             # Push to asyncio queue if configured
             if self._queue is not None and self._loop is not None:
                 # Thread-safe: schedule the put on the event loop
-                asyncio.run_coroutine_threadsafe(
-                    self._queue.put(chunk), self._loop
-                )
+                asyncio.run_coroutine_threadsafe(self._queue.put(chunk), self._loop)
 
         except Exception as exc:
             logger.error("Error in audio callback: %s", exc, exc_info=True)
@@ -170,7 +167,7 @@ class AudioCapture:
 
     def start(
         self,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
+        loop: asyncio.AbstractEventLoop | None = None,
     ) -> None:
         """Start audio capture.
 
@@ -187,9 +184,7 @@ class AudioCapture:
                 raise RuntimeError("No input audio device found")
 
         # Validate the device
-        if not validate_device(
-            self._device_index, self._sample_rate, self._channels
-        ):
+        if not validate_device(self._device_index, self._sample_rate, self._channels):
             raise RuntimeError(f"Device {self._device_index} validation failed")
 
         self._loop = loop or asyncio.get_event_loop()
@@ -256,19 +251,22 @@ class AudioCapture:
             or "error" in status_str
         )
 
-        if error_indicators and not self._recovering and not self._stopped_permanently:
-            if self._loop is not None and self._loop.is_running():
-                self._recovering = True
-                logger.warning(
-                    "Device error detected (restart #%d): %s",
-                    self._restart_count + 1,
-                    status,
-                )
-                # Schedule restart coroutine directly (single event-loop hop)
-                asyncio.run_coroutine_threadsafe(
-                    self._do_restart(), self._loop
-                )
-                return True
+        if (
+            error_indicators
+            and not self._recovering
+            and not self._stopped_permanently
+            and self._loop is not None
+            and self._loop.is_running()
+        ):
+            self._recovering = True
+            logger.warning(
+                "Device error detected (restart #%d): %s",
+                self._restart_count + 1,
+                status,
+            )
+            # Schedule restart coroutine directly (single event-loop hop)
+            asyncio.run_coroutine_threadsafe(self._do_restart(), self._loop)
+            return True
 
         return False
 
@@ -300,7 +298,7 @@ class AudioCapture:
             return
 
         # Exponential backoff
-        delay = self._backoff_base * (2 ** self._restart_count)
+        delay = self._backoff_base * (2**self._restart_count)
         logger.info(
             "Waiting %.1fs before restart attempt #%d...",
             delay,
@@ -313,9 +311,7 @@ class AudioCapture:
             self._recovering = False
             return
 
-        success = await asyncio.get_running_loop().run_in_executor(
-            None, self.restart
-        )
+        success = await asyncio.get_running_loop().run_in_executor(None, self.restart)
 
         if success:
             self._restart_count = 0
@@ -327,9 +323,7 @@ class AudioCapture:
             # _maybe_recover_from_status from spawning a parallel chain.
             # _recovering is only cleared on success or permanent failure.
             if not self._stopped_permanently:
-                asyncio.run_coroutine_threadsafe(
-                    self._do_restart(), self._loop
-                )
+                asyncio.run_coroutine_threadsafe(self._do_restart(), self._loop)
             else:
                 self._recovering = False
 
@@ -356,7 +350,7 @@ class AudioCapture:
             logger.error("Failed to restart audio capture: %s", exc)
             return False
 
-    def get_device_index(self) -> Optional[int]:
+    def get_device_index(self) -> int | None:
         """Get the current device index."""
         return self._device_index
 
@@ -389,10 +383,10 @@ class SystemAudioCapture(AudioCapture):
         sample_rate: int = 16000,
         chunk_duration: float = 2.0,
         channels: int = 2,  # BlackHole typically outputs stereo
-        ring_buffer: Optional[RingBuffer] = None,
-        queue: Optional[asyncio.Queue[AudioChunk]] = None,
-        archiver: Optional[AudioArchiver] = None,
-        silence_detector: Optional[SilenceDetector] = None,
+        ring_buffer: RingBuffer | None = None,
+        queue: asyncio.Queue[AudioChunk] | None = None,
+        archiver: AudioArchiver | None = None,
+        silence_detector: SilenceDetector | None = None,
     ) -> None:
         """Initialize system audio capture.
 
