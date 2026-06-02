@@ -1,5 +1,7 @@
 # called — Real-Time Audio Transcription
 
+[![CI](https://github.com/godie/called/actions/workflows/ci.yml/badge.svg)](https://github.com/godie/called/actions/workflows/ci.yml)
+
 Continuously captures microphone and/or system audio and generates live transcriptions using [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Outputs transcripts in TXT, JSON, and SRT formats.
 
 ## Features
@@ -23,7 +25,7 @@ Continuously captures microphone and/or system audio and generates live transcri
 ### Installation
 
 ```bash
-git clone https://github.com/your-org/called.git
+git clone https://github.com/godie/called.git
 cd called
 pip install -r requirements.txt
 cp .env.example .env   # Edit as needed
