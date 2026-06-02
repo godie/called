@@ -57,7 +57,7 @@ Open an issue using the **Feature Request** template. Describe the use case, how
 
 #### PR labels
 
-GitHub Actions will label your PR automatically. The labels map to release note categories:
+Apply labels to your PR so it appears in the right release notes section:
 
 | Label | Section |
 |-------|---------|
