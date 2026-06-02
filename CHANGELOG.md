@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GPL-3.0-or-later license.
 - GitHub repository at [github.com/godie/called](https://github.com/godie/called).
 
-## [0.1.0] — 2025-06-02
+## [0.1.0] — 2026-06-02
 
 ### Added
 
